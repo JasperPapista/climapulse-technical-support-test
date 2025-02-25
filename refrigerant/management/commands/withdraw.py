@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from ...models import Vessel
 import threading
 
@@ -15,16 +16,18 @@ class Command(BaseCommand):
         barrier = threading.Barrier(2)
 
         def user1():
-            barrier.wait()
-            vessel = Vessel.objects.get(id=1)
-            vessel.content -= 10.0
-            vessel.save()
+            with transaction.atomic():
+                barrier.wait()
+                vessel = Vessel.objects.select_for_update().get(id=1)
+                vessel.content -= 10.0
+                vessel.save()
 
         def user2():
-            barrier.wait()
-            vessel = Vessel.objects.get(id=1)
-            vessel.content -= 10.0
-            vessel.save()
+            with transaction.atomic():
+                barrier.wait()
+                vessel = Vessel.objects.select_for_update().get(id=1)
+                vessel.content -= 10.0
+                vessel.save()
 
         t1 = threading.Thread(target=user1)
         t2 = threading.Thread(target=user2)
