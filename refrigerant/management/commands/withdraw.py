@@ -15,19 +15,23 @@ class Command(BaseCommand):
     def run_simulation(self):
         barrier = threading.Barrier(2)
 
-        def user1():
+        def withdraw_refrigerant(user, amount):
             with transaction.atomic():
                 barrier.wait()
                 vessel = Vessel.objects.select_for_update().get(id=1)
-                vessel.content -= 10.0
+                if vessel.content < amount:
+                    self.stderr.write(f"{user}: Not enough refrigerant!")
+                    return
+                vessel.content -= amount
                 vessel.save()
+                self.stdout.write(f"{user}: Withdrawn {amount} kg")
+
+        def user1():
+            withdraw_refrigerant('user1', 10.0)
 
         def user2():
-            with transaction.atomic():
-                barrier.wait()
-                vessel = Vessel.objects.select_for_update().get(id=1)
-                vessel.content -= 10.0
-                vessel.save()
+            withdraw_refrigerant('user2', 10.0)
+
 
         t1 = threading.Thread(target=user1)
         t2 = threading.Thread(target=user2)
